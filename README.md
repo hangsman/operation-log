@@ -62,7 +62,7 @@ public class OrderServiceImpl implements OrderService {
 
 ```java
 public interface OperationLogRecorder {
-    void record(OperationLogBody body);
+    void record(OperationLog operationLog);
 }
 ```
 
