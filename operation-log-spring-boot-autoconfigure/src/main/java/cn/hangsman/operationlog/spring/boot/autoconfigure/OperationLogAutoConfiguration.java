@@ -3,6 +3,7 @@ package cn.hangsman.operationlog.spring.boot.autoconfigure;
 import cn.hangsman.operationlog.spel.SpelFunction;
 import cn.hangsman.operationlog.spel.SpelFunctionExpressionParser;
 import cn.hangsman.operationlog.spel.SpelFunctionFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -23,7 +24,7 @@ public class OperationLogAutoConfiguration {
     }
 
     @Bean
-    public SpelFunctionFactory spelFunctionFactory(List<SpelFunction> parseFunctions) {
+    public SpelFunctionFactory spelFunctionFactory(@Autowired(required = false) List<SpelFunction> parseFunctions) {
         return new SpelFunctionFactory(parseFunctions);
     }
 }

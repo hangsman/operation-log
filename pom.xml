@@ -67,7 +67,7 @@
             </dependency>
             <dependency>
                 <groupId>cn.hangsman.operationlog</groupId>
-                <artifactId>operation-log-core</artifactId>
+                <artifactId>operation-log</artifactId>
                 <version>1.0.0</version>
             </dependency>
             <dependency>
