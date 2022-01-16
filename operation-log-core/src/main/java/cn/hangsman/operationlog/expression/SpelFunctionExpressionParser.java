@@ -59,9 +59,9 @@ public class SpelFunctionExpressionParser extends TemplateAwareExpressionParser 
         String originExpressionString = expressionString;
         // 将解析出来的方法替换成变量形式
         // #_ret != null ? $json(#_ret) : '' 将被替换成 #_ret != null ? #fun_uuid : ''
-        for (String key : variableExpressionMap.keySet()) {
-            Expression expression = variableExpressionMap.get(key);
-            expressionString = expressionString.replace(expression.getExpressionString(), "#" + key);
+        for (Map.Entry<String, Expression> entry : variableExpressionMap.entrySet()) {
+            Expression expression = entry.getValue();
+            expressionString = expressionString.replace(expression.getExpressionString(), "#" + entry.getKey());
         }
         // 然后解析上面替换好的表达式
         Expression proxyExpression = doParseExpression(expressionString, null);
@@ -150,10 +150,10 @@ public class SpelFunctionExpressionParser extends TemplateAwareExpressionParser 
 
         @Override
         public Object getValue(EvaluationContext context) throws EvaluationException {
-            for (String key : variableExpressionMap.keySet()) {
-                Expression expression = variableExpressionMap.get(key);
+            for (Map.Entry<String, Expression> entry : variableExpressionMap.entrySet()) {
+                Expression expression = entry.getValue();
                 Object value = expression.getValue(context);
-                context.setVariable(key, value);
+                context.setVariable(entry.getKey(), value);
             }
             return proxyExpression.getValue(context);
         }

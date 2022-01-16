@@ -57,7 +57,13 @@ public @interface OperationLog {
      * 前置处理 格式{"变量名={spel表达式}"}
      * 之后在其他模板中可以使用 #变量名 获取表达式返回值
      *
-     * @return string
+     * @return string[]
      */
     String[] before() default "";
+
+    /**
+     * 格式同 before
+     * @return string[]
+     */
+    String[] additional() default "";
 }

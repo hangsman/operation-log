@@ -29,4 +29,6 @@ public class OperationLogParam {
 
     Map<String, String> before;
 
+    Map<String, String> additional;
+
 }
