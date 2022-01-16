@@ -19,7 +19,7 @@
 <dependency>
     <groupId>cn.hangsman.operationlog</groupId>
     <artifactId>operation-log-spring-boot-starter</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 </dependency>
 ```
 
