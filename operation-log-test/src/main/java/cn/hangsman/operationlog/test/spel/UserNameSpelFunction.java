@@ -1,6 +1,7 @@
 package cn.hangsman.operationlog.test.spel;
 
-import cn.hangsman.operationlog.spel.SpelFunction;
+
+import cn.hangsman.operationlog.expression.SpelFunction;
 import cn.hangsman.operationlog.test.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

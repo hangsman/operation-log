@@ -3,7 +3,7 @@
 > 参考 [mzt-biz-log](https://github.com/mouzt/mzt-biz-log) 实现的一款基于 spring aop 操作日志记录工具 支持自定义方法处理
 
 <p align="center">
-<img src="https://maven-badges.herokuapp.com/maven-central/cn.hangsman.operationlog/operation-log/badge.svg" />
+<img src="https://maven-badges.herokuapp.com/maven-central/cn.hangsman.operationlog/operation-log-core/badge.svg" />
 <a target="_blank" href="https://github.com/hangsman/operation-log/blob/master/LICENSE">
     <img src="https://img.shields.io/apm/l/vim-mode.svg?color=yellow" />
 </a>

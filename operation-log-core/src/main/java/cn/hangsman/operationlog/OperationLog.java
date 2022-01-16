@@ -20,6 +20,6 @@ public class OperationLog {
     private String fail;
     private String detail;
     private String category;
-    private Date operatingTime;
+    private Date operationTime;
 
 }

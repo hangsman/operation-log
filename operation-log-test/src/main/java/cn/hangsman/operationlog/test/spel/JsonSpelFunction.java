@@ -1,6 +1,7 @@
 package cn.hangsman.operationlog.test.spel;
 
-import cn.hangsman.operationlog.spel.SpelFunction;
+
+import cn.hangsman.operationlog.expression.SpelFunction;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;

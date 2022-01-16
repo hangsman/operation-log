@@ -1,6 +1,5 @@
 package cn.hangsman.operationlog.test;
 
-import cn.hangsman.operationlog.spring.boot.annotation.EnableOperationLog;
 import cn.hangsman.operationlog.test.domain.User;
 import cn.hangsman.operationlog.test.service.IUserService;
 import org.junit.Test;
