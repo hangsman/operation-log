@@ -18,7 +18,8 @@ public class UserService implements IUserService {
     @OperationLog(category = "创建用户",
             content = "添加了一个用户名为 {#user.username} 的用户",
             fail = "用户添加失败：{#_errorMsg}",
-            detail = "{#_ret != null ? $json(#_ret) : ''}")
+            detail = "{#_ret != null ? $json(#_ret) : ''}",
+            additional = {"type={'修改用户'}"})
     public User createUser(User user) {
         user.setId(10000);
         return user;

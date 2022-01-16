@@ -15,6 +15,7 @@ import org.springframework.beans.factory.*;
 import org.springframework.context.expression.AnnotatedElementKey;
 import org.springframework.core.BridgeMethodResolver;
 import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.Expression;
 import org.springframework.lang.Nullable;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -22,9 +23,7 @@ import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.Collection;
-import java.util.Date;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -81,6 +80,7 @@ public class OperationLogAspectSupport implements BeanFactoryAware, SmartInitial
         builder.operationTime(operationTime);
         builder.category(operation.category);
         builder.detail(operationContext.parseTemplate(operation.detail));
+        builder.additional(operationContext.parseMapTemplate(operation.additional));
         if (invokeSuccess) {
             builder.content(operationContext.parseTemplate(operation.content));
         } else {
@@ -243,6 +243,18 @@ public class OperationLogAspectSupport implements BeanFactoryAware, SmartInitial
                 Object result = evaluator.parseExpression(value, metadata.methodKey, evaluationContext, Object.class);
                 evaluationContext.setVariable(key, result);
             });
+        }
+
+        protected Map<String, Object> parseMapTemplate(Map<String, String> templateMap) {
+            if (templateMap.isEmpty()){
+                return Collections.emptyMap();
+            }
+            HashMap<String, Object> resultMap = new HashMap<>();
+            for (Map.Entry<String, String> entry : templateMap.entrySet()) {
+                Object result = evaluator.parseExpression(entry.getValue(), metadata.methodKey, evaluationContext, Object.class);
+                resultMap.put(entry.getKey(), result);
+            }
+            return resultMap;
         }
 
         protected String parseTemplate(String template) {

@@ -2,13 +2,11 @@ package cn.hangsman.operationlog.annotation;
 
 import cn.hangsman.operationlog.interceptor.OperationLogParam;
 import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.AnnotatedElement;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -37,25 +35,35 @@ public class OperationLogAnnotationParser {
         if (ans.isEmpty()) {
             return null;
         }
-        return ans.stream().map(an -> {
-            Map<String, String> beforeHandles = new HashMap<>();
-            for (String template : an.before()) {
-                if (StringUtils.hasText(template)) {
-                    int delimiterIndex = template.indexOf("=");
-                    String variableName = template.substring(0, delimiterIndex);
-                    String expressionStr = template.substring(delimiterIndex + 1);
-                    beforeHandles.put(variableName, expressionStr);
-                }
-            }
-            return OperationLogParam.builder()
-                    .name(ae.toString())
-                    .content(an.content())
-                    .fail(an.fail())
-                    .category(an.category())
-                    .detail(an.detail())
-                    .condition(an.condition())
-                    .before(beforeHandles).build();
-        }).collect(Collectors.toCollection(ArrayList::new));
+        return ans.stream().map(an -> OperationLogParam.builder()
+                .name(ae.toString())
+                .content(an.content())
+                .fail(an.fail())
+                .category(an.category())
+                .detail(an.detail())
+                .condition(an.condition())
+                .before(paresToMap(an.before()))
+                .additional(paresToMap(an.additional()))
+                .build()).collect(Collectors.toCollection(ArrayList::new));
     }
 
+
+    /**
+     * 将 变量名={spel表达式}解析为键值对形式
+     */
+    private Map<String, String> paresToMap(String[] templates) {
+        if (ObjectUtils.isEmpty(templates)) {
+            return Collections.emptyMap();
+        }
+        Map<String, String> map = new HashMap<>();
+        for (String template : templates) {
+            if (StringUtils.hasText(template)) {
+                int delimiterIndex = template.indexOf("=");
+                String variableName = template.substring(0, delimiterIndex);
+                String expressionStr = template.substring(delimiterIndex + 1);
+                map.put(variableName, expressionStr);
+            }
+        }
+        return map;
+    }
 }
