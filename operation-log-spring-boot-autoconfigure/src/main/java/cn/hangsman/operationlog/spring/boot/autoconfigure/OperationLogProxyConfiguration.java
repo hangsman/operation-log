@@ -32,6 +32,9 @@ public class OperationLogProxyConfiguration implements ImportAware {
         BeanFactoryOperationLogSourceAdvisor advisor = new BeanFactoryOperationLogSourceAdvisor();
         advisor.setAdvice(operationLogInterceptor());
         advisor.setLogOperationSource(logOperationSource());
+        if (this.enableOperationLog != null) {
+            advisor.setOrder(this.enableOperationLog.<Integer>getNumber("order"));
+        }
         return advisor;
     }
 

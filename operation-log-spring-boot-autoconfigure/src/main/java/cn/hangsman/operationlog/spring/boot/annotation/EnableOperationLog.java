@@ -3,6 +3,7 @@ package cn.hangsman.operationlog.spring.boot.annotation;
 import cn.hangsman.operationlog.spring.boot.autoconfigure.OperationLogAutoConfiguration;
 import org.springframework.context.annotation.AdviceMode;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.Ordered;
 
 import java.lang.annotation.*;
 
@@ -22,4 +23,5 @@ public @interface EnableOperationLog {
 
     boolean proxyTargetClass() default false;
 
+    int order() default Ordered.LOWEST_PRECEDENCE;
 }
