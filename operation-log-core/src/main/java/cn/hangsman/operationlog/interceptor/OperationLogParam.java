@@ -3,6 +3,8 @@ package cn.hangsman.operationlog.interceptor;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.Map;
+
 /**
  * Created by 2022/1/14 21:13
  *
@@ -25,6 +27,6 @@ public class OperationLogParam {
 
     String condition;
 
-    String[] before;
+    Map<String, String> before;
 
 }

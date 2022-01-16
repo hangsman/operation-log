@@ -1,5 +1,6 @@
 package cn.hangsman.operationlog.interceptor;
 
+import lombok.Getter;
 import org.aopalliance.intercept.MethodInvocation;
 
 /**
@@ -8,43 +9,23 @@ import org.aopalliance.intercept.MethodInvocation;
  * @author hangsman
  * @since 1.0
  */
+@Getter
 class OperationLogInvoker {
 
     private final MethodInvocation invocation;
     private Object retValue;
-    private ThrowableWrapper throwableWrapper;
+    private Throwable throwable;
 
     public OperationLogInvoker(MethodInvocation invocation) {
         this.invocation = invocation;
     }
 
-    public void invoke() throws ThrowableWrapper {
+    public void invoke() {
         try {
             retValue = invocation.proceed();
         } catch (Throwable ex) {
-            throwableWrapper = new ThrowableWrapper(ex);
+            throwable = ex;
         }
     }
 
-    public Object getRetValue() {
-        return retValue;
-    }
-
-    public ThrowableWrapper getThrowableWrapper() {
-        return throwableWrapper;
-    }
-
-    static class ThrowableWrapper extends RuntimeException {
-
-        private final Throwable original;
-
-        public ThrowableWrapper(Throwable original) {
-            super(original.getMessage(), original);
-            this.original = original;
-        }
-
-        public Throwable getOriginal() {
-            return this.original;
-        }
-    }
 }

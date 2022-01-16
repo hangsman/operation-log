@@ -2,7 +2,6 @@ package cn.hangsman.operationlog.test.domain;
 
 import lombok.Builder;
 import lombok.Data;
-import org.springframework.core.annotation.Order;
 
 /**
  * Created by 2022/1/14 17:23

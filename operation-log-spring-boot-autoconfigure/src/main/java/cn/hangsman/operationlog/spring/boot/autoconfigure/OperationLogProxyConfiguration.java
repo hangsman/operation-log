@@ -5,7 +5,6 @@ import cn.hangsman.operationlog.interceptor.OperationLogInterceptor;
 import cn.hangsman.operationlog.interceptor.OperationLogSource;
 import cn.hangsman.operationlog.service.OperationLogRecorder;
 import cn.hangsman.operationlog.service.OperatorService;
-import cn.hangsman.operationlog.spel.SpelFunctionExpressionParser;
 import cn.hangsman.operationlog.spring.boot.annotation.EnableOperationLog;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -22,44 +21,31 @@ import org.springframework.core.type.AnnotationMetadata;
  * @author hangsman
  * @since 1.0
  */
-@Configuration(proxyBeanMethods = false)
+@Configuration
 @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 public class OperationLogProxyConfiguration implements ImportAware {
 
     protected AnnotationAttributes enableOperationLog;
 
     @Bean
-    public BeanFactoryOperationLogSourceAdvisor advisor(OperationLogInterceptor interceptor, OperationLogSource operationLogSource) {
+    public BeanFactoryOperationLogSourceAdvisor advisor() {
         BeanFactoryOperationLogSourceAdvisor advisor = new BeanFactoryOperationLogSourceAdvisor();
-        advisor.setAdvice(interceptor);
-        advisor.setLogOperationSource(operationLogSource);
+        advisor.setAdvice(operationLogInterceptor());
+        advisor.setLogOperationSource(logOperationSource());
         return advisor;
     }
 
-
     @Bean
-    public OperationLogInterceptor operationLogInterceptor(OperationLogSource operationLogSource,
-                                                           SpelFunctionExpressionParser expressionParser,
-                                                           @Autowired(required = false) OperationLogRecorder operationLogRecorder,
-                                                           @Autowired(required = false) OperatorService operatorService) {
+    public OperationLogInterceptor operationLogInterceptor() {
         OperationLogInterceptor interceptor = new OperationLogInterceptor();
-        interceptor.setExpressionParser(expressionParser);
-        interceptor.setOperationSource(operationLogSource);
-        if (operationLogRecorder != null) {
-            interceptor.setOperationLogRecorder(operationLogRecorder);
-        }
-        if (operatorService != null) {
-            interceptor.setOperatorService(operatorService);
-        }
+        interceptor.setOperationSource(logOperationSource());
         return interceptor;
     }
-
 
     @Bean
     public OperationLogSource logOperationSource() {
         return new OperationLogSource();
     }
-
 
     @Override
     public void setImportMetadata(AnnotationMetadata importMetadata) {

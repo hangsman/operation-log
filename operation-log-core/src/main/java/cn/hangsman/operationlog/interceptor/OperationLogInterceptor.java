@@ -19,10 +19,10 @@ public class OperationLogInterceptor extends OperationLogAspectSupport implement
         OperationLogInvoker invoker = new OperationLogInvoker(invocation);
         Object target = invocation.getThis();
         Assert.state(target != null, "Target must not be null");
-        try {
-            return execute(invoker, target, method, invocation.getArguments());
-        } catch (OperationLogInvoker.ThrowableWrapper th) {
-            throw th.getOriginal();
+        invoker = execute(invoker, target, method, invocation.getArguments());
+        if (invoker.getThrowable() != null) {
+            throw invoker.getThrowable();
         }
+        return invoker.getRetValue();
     }
 }

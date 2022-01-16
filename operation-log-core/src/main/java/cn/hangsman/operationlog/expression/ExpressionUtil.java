@@ -1,4 +1,4 @@
-package cn.hangsman.operationlog.spel;
+package cn.hangsman.operationlog.expression;
 
 import org.springframework.expression.ParseException;
 
@@ -11,7 +11,7 @@ import java.util.Deque;
  * @author hangsman
  * @since 1.0
  */
-public class SpelUtil {
+public class ExpressionUtil {
 
     private static boolean isSuffixHere(String expressionString, int pos, String suffix) {
         int suffixPosition = 0;

@@ -1,4 +1,4 @@
-package cn.hangsman.operationlog.spel;
+package cn.hangsman.operationlog.expression;
 
 import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.expression.EvaluationContext;
@@ -7,40 +7,47 @@ import org.springframework.expression.Expression;
 import org.springframework.expression.TypedValue;
 import org.springframework.expression.common.ExpressionUtils;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Created by 2022/1/12 15:42
+ * Created by 2022/1/16 9:24
  *
  * @author hangsman
  * @since 1.0
  */
-public class FunctionExpressionProxy implements Expression {
+public class SpelFunctionExpression implements Expression {
 
-    private final String expressionString;
+    private final String expressionStr;
+    private final Expression[] expressions;
+    private final SpelFunction function;
 
-    private final Expression proxyExpression;
-    private final Map<String, Expression> variableExpressionMap;
-
-    public FunctionExpressionProxy(String expressionString, Expression proxyExpression, Map<String, Expression> variableExpressionMap) {
-        this.expressionString = expressionString;
-        this.proxyExpression = proxyExpression;
-        this.variableExpressionMap = variableExpressionMap;
+    public SpelFunctionExpression(String expressionStr, Expression[] expressions,
+                                  SpelFunction function) {
+        this.expressionStr = expressionStr;
+        this.expressions = expressions;
+        this.function = function;
     }
 
     @Override
     public String getExpressionString() {
-        return this.expressionString;
+        return this.expressionStr;
     }
 
     @Override
     public Object getValue(EvaluationContext context) throws EvaluationException {
-        for (String key : variableExpressionMap.keySet()) {
-            Expression expression = variableExpressionMap.get(key);
-            Object value = expression.getValue(context);
-            context.setVariable(key, value);
+        if (expressions.length == 1) {
+            Expression expression = expressions[0];
+            Object result = expression.getValue(context);
+            return function.apply(result);
+        } else {
+            Map<String, Object> variableMap = new HashMap<>();
+            for (int i = 0; i < expressions.length; i++) {
+                Object result = expressions[i].getValue(context);
+                variableMap.put("p" + i, result);
+            }
+            return function.apply(variableMap);
         }
-        return proxyExpression.getValue(context);
     }
 
     @Override
@@ -154,4 +161,5 @@ public class FunctionExpressionProxy implements Expression {
     public void setValue(EvaluationContext context, Object rootObject, Object value) throws EvaluationException {
 
     }
+
 }

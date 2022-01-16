@@ -1,6 +1,5 @@
 package cn.hangsman.operationlog.test.service;
 
-import cn.hangsman.operationlog.annotation.OperationLog;
 import cn.hangsman.operationlog.test.domain.User;
 
 /**

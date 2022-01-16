@@ -1,26 +1,29 @@
 package cn.hangsman.operationlog.interceptor;
 
 import cn.hangsman.operationlog.OperationLog;
-
+import cn.hangsman.operationlog.expression.OperationLogExpressionEvaluator;
 import cn.hangsman.operationlog.service.DefaultOperationLogRecorder;
 import cn.hangsman.operationlog.service.DefaultOperatorService;
 import cn.hangsman.operationlog.service.OperationLogRecorder;
 import cn.hangsman.operationlog.service.OperatorService;
-import cn.hangsman.operationlog.spel.SpelFunctionExpressionParser;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.aop.framework.AopProxyUtils;
-import org.springframework.beans.factory.InitializingBean;
+import org.springframework.aop.support.AopUtils;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.*;
 import org.springframework.context.expression.AnnotatedElementKey;
+import org.springframework.core.BridgeMethodResolver;
 import org.springframework.expression.EvaluationContext;
-import org.springframework.expression.Expression;
 import org.springframework.lang.Nullable;
-import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.Collection;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -30,7 +33,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author hangsman
  * @since 1.0
  */
-public class OperationLogAspectSupport implements InitializingBean {
+@Getter
+@Setter
+public class OperationLogAspectSupport implements BeanFactoryAware, SmartInitializingSingleton {
 
     private final Map<LogOperationCacheKey, LogOperationMetadata> metadataCache = new ConcurrentHashMap<>(512);
 
@@ -40,140 +45,104 @@ public class OperationLogAspectSupport implements InitializingBean {
 
     private OperationLogSource operationSource;
 
-    private SpelFunctionExpressionParser expressionParser;
+    private OperationLogExpressionEvaluator evaluator;
 
-    protected Object execute(OperationLogInvoker invoker, Object target, Method method, Object[] args) {
+    private BeanFactory beanFactory;
+
+    protected OperationLogInvoker execute(final OperationLogInvoker invoker, Object target, Method method, Object[] args) {
         Class<?> targetClass = getTargetClass(target);
         OperationLogSource operationSource = getOperationSource();
         Collection<OperationLogParam> operations = operationSource.getLogOperations(method, targetClass);
         if (!CollectionUtils.isEmpty(operations)) {
             OperationLogParam operation = operations.iterator().next();
-            EvaluationContext evaluationContext = getExpressionParser().createEvaluationContext(method, args);
-            LogOperationMetadata metadata = getLogOperationMetadata(operation, method, targetClass);
-            recordLog(invoker, metadata, evaluationContext);
+            LogOperationContext operationContext = createLogOperationContext(operation, method, args, target, targetClass);
+            if (operationContext.isConditionPassing()) {
+                operationContext.resolveBeforeHandle();
+                boolean invokeSuccess = invoke(invoker, operationContext.evaluationContext);
+                recordLog(operationContext, invokeSuccess, new Date());
+            }
         } else {
             invoker.invoke();
         }
-        if (invoker.getThrowableWrapper() != null) {
-            throw invoker.getThrowableWrapper();
-        }
-        return invoker.getRetValue();
+        return invoker;
     }
 
-    private void recordLog(final OperationLogInvoker invoker, LogOperationMetadata metadata, EvaluationContext evaluationContext) {
-        for (String variableName : metadata.variableExpressionMap.keySet()) {
-            Expression expression = metadata.variableExpressionMap.get(variableName);
-            evaluationContext.setVariable(variableName, expression.getValue(evaluationContext));
-        }
-        Date operationTime = new Date();
+    protected boolean invoke(OperationLogInvoker invoker, EvaluationContext evaluationContext) {
         invoker.invoke();
         evaluationContext.setVariable("_ret", invoker.getRetValue());
-        OperationLogInvoker.ThrowableWrapper throwableWrapper = invoker.getThrowableWrapper();
-        evaluationContext.setVariable("_errorMsg", throwableWrapper != null ? throwableWrapper.getMessage() : null);
-        if (isConditionPassing(metadata, evaluationContext)) {
-            OperationLog.OperationLogBuilder builder = OperationLog.builder();
-            Map<String, Expression> expressionMap = metadata.templateExpressionMap;
-            OperationLogParam operation = metadata.operation;
-            if (throwableWrapper == null) {
-                builder.content(expressionMap.get(operation.content).getValue(evaluationContext, String.class));
-            } else {
-                builder.fail(expressionMap.get(operation.fail).getValue(evaluationContext, String.class));
-            }
-            builder.detail(expressionMap.get(operation.detail).getValue(evaluationContext, String.class));
-            builder.operator(getOperatorService().getOperator());
-            builder.operatingTime(operationTime);
-            builder.category(metadata.operation.category);
-            this.operationLogRecorder.record(builder.build());
-        }
+        evaluationContext.setVariable("_errorMsg", invoker.getThrowable() != null ? invoker.getThrowable().getMessage() : "");
+        return invoker.getThrowable() == null;
     }
 
-
-    private boolean isConditionPassing(LogOperationMetadata metadata, EvaluationContext evaluationContext) {
-        if (StringUtils.hasText(metadata.operation.condition)) {
-            Expression expression = metadata.templateExpressionMap.get(metadata.operation.condition);
-            Boolean expressionValue = expression.getValue(evaluationContext, Boolean.class);
-            return Boolean.TRUE.equals(expressionValue);
+    protected void recordLog(LogOperationContext operationContext, boolean invokeSuccess, Date operationTime) {
+        OperationLogParam operation = operationContext.metadata.operation;
+        OperationLog.OperationLogBuilder builder = OperationLog.builder();
+        builder.operator(this.operatorService.getOperator());
+        builder.operationTime(operationTime);
+        builder.category(operation.category);
+        builder.detail(operationContext.parseTemplate(operation.detail));
+        if (invokeSuccess) {
+            builder.content(operationContext.parseTemplate(operation.content));
+        } else {
+            builder.fail(operationContext.parseTemplate(operation.fail));
         }
-        return true;
+        this.operationLogRecorder.record(builder.build());
     }
 
     private Class<?> getTargetClass(Object target) {
         return AopProxyUtils.ultimateTargetClass(target);
     }
 
+    protected LogOperationContext createLogOperationContext(
+            OperationLogParam operation, Method method, Object[] args, Object target, Class<?> targetClass) {
+        LogOperationMetadata metadata = getLogOperationMetadata(operation, method, targetClass);
+        return new LogOperationContext(metadata, args, target);
+    }
+
     protected LogOperationMetadata getLogOperationMetadata(OperationLogParam operation, Method method, Class<?> targetClass) {
         LogOperationCacheKey cacheKey = new LogOperationCacheKey(operation, method, targetClass);
         LogOperationMetadata metadata = this.metadataCache.get(cacheKey);
         if (metadata == null) {
-            Map<String, Expression> variableExpressionMap = new HashMap<>();
-            for (String template : operation.before) {
-                if (StringUtils.hasText(template)) {
-                    int delimiterIndex = template.indexOf("=");
-                    String variableName = template.substring(0, delimiterIndex);
-                    String expressionStr = template.substring(delimiterIndex + 1);
-                    Expression expression = getExpressionParser().parseExpression(expressionStr);
-                    variableExpressionMap.put(variableName, expression);
-                }
-            }
-            Map<String, Expression> templateExpressionMap = new HashMap<>();
-            templateExpressionMap.put(operation.content, getExpressionParser().parseExpression(operation.content));
-            templateExpressionMap.put(operation.fail, getExpressionParser().parseExpression(operation.fail));
-            templateExpressionMap.put(operation.detail, getExpressionParser().parseExpression(operation.detail));
-            templateExpressionMap.put(operation.condition, getExpressionParser().parseExpression(operation.condition));
-            metadata = new LogOperationMetadata(operation, variableExpressionMap, templateExpressionMap);
+            metadata = new LogOperationMetadata(operation, method, targetClass);
             this.metadataCache.put(cacheKey, metadata);
         }
         return metadata;
     }
 
-    public OperatorService getOperatorService() {
-        return operatorService;
-    }
-
-    public void setOperatorService(OperatorService operatorService) {
-        this.operatorService = operatorService;
-    }
-
-    public void setOperationLogRecorder(OperationLogRecorder operationLogRecorder) {
-        this.operationLogRecorder = operationLogRecorder;
-    }
-
-    public OperationLogSource getOperationSource() {
-        return operationSource;
-    }
-
-    public void setOperationSource(OperationLogSource operationSource) {
-        this.operationSource = operationSource;
-    }
-
-    public SpelFunctionExpressionParser getExpressionParser() {
-        return expressionParser;
-    }
-
-    public void setExpressionParser(SpelFunctionExpressionParser expressionParser) {
-        this.expressionParser = expressionParser;
+    @Override
+    public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
+        this.beanFactory = beanFactory;
     }
 
     @Override
-    public void afterPropertiesSet() throws Exception {
-        Assert.notNull(expressionParser, "expressionParser can not be empty");
-        Assert.notNull(operatorService, "expressionEvaluator can not be empty");
-        Assert.notNull(operationLogRecorder, "OperationLogRecorder can not be empty");
+    public void afterSingletonsInstantiated() {
+        try {
+            setEvaluator(this.beanFactory.getBean(OperationLogExpressionEvaluator.class));
+            setOperationLogRecorder(this.beanFactory.getBean(OperationLogRecorder.class));
+            setOperatorService(this.beanFactory.getBean(OperatorService.class));
+        } catch (NoUniqueBeanDefinitionException ex) {
+            throw new IllegalStateException("no unique bean of type.", ex);
+        } catch (NoSuchBeanDefinitionException ex) {
+            throw new IllegalStateException("no bean of type found. ", ex);
+        }
     }
-
 
     protected static class LogOperationMetadata {
 
         private final OperationLogParam operation;
 
-        private final Map<String, Expression> variableExpressionMap;
+        private final Method method;
 
-        private final Map<String, Expression> templateExpressionMap;
+        private final Method targetMethod;
 
-        public LogOperationMetadata(OperationLogParam operation, Map<String, Expression> variableExpressionMap, Map<String, Expression> templateExpressionMap) {
+        private final AnnotatedElementKey methodKey;
+
+        public LogOperationMetadata(OperationLogParam operation, Method method, Class<?> targetClass) {
             this.operation = operation;
-            this.variableExpressionMap = variableExpressionMap;
-            this.templateExpressionMap = templateExpressionMap;
+            this.method = BridgeMethodResolver.findBridgedMethod(method);
+            this.targetMethod = (!Proxy.isProxyClass(targetClass) ?
+                    AopUtils.getMostSpecificMethod(method, targetClass) : this.method);
+            this.methodKey = new AnnotatedElementKey(this.targetMethod, targetClass);
         }
     }
 
@@ -219,5 +188,66 @@ public class OperationLogAspectSupport implements InitializingBean {
             }
             return result;
         }
+    }
+
+    @Getter
+    protected class LogOperationContext {
+
+        private final LogOperationMetadata metadata;
+
+        private final Object[] args;
+
+        private final Object target;
+
+        private final EvaluationContext evaluationContext;
+
+        private Boolean conditionPassing;
+
+
+        public LogOperationContext(LogOperationMetadata metadata, Object[] args, Object target) {
+            this.metadata = metadata;
+            this.args = extractArgs(metadata.method, args);
+            this.target = target;
+            this.evaluationContext = createEvaluationContext(metadata.targetMethod, args);
+        }
+
+        private EvaluationContext createEvaluationContext(Method targetMethod, Object[] args) {
+            return evaluator.createEvaluationContext(targetMethod, args, beanFactory);
+        }
+
+        private Object[] extractArgs(Method method, Object[] args) {
+            if (!method.isVarArgs()) {
+                return args;
+            }
+            Object[] varArgs = ObjectUtils.toObjectArray(args[args.length - 1]);
+            Object[] combinedArgs = new Object[args.length - 1 + varArgs.length];
+            System.arraycopy(args, 0, combinedArgs, 0, args.length - 1);
+            System.arraycopy(varArgs, 0, combinedArgs, args.length - 1, varArgs.length);
+            return combinedArgs;
+        }
+
+        protected boolean isConditionPassing() {
+            if (this.conditionPassing == null) {
+                if (StringUtils.hasText(this.metadata.operation.getCondition())) {
+                    this.conditionPassing = evaluator.condition(this.metadata.operation.getCondition(),
+                            this.metadata.methodKey, evaluationContext);
+                } else {
+                    this.conditionPassing = true;
+                }
+            }
+            return this.conditionPassing;
+        }
+
+        protected void resolveBeforeHandle() {
+            metadata.operation.before.forEach((key, value) -> {
+                Object result = evaluator.parseExpression(value, metadata.methodKey, evaluationContext, Object.class);
+                evaluationContext.setVariable(key, result);
+            });
+        }
+
+        protected String parseTemplate(String template) {
+            return evaluator.parseExpression(template, metadata.methodKey, evaluationContext, String.class);
+        }
+
     }
 }
