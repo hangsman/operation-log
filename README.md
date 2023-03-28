@@ -1,6 +1,6 @@
 # Operation Log
 
-> 参考 [mzt-biz-log](https://github.com/mouzt/mzt-biz-log) 实现的一款基于 spring aop 操作日志记录工具 支持自定义方法处理
+> 基于 spring aop 操作日志记录工具 支持自定义方法处理
 
 <p>
 <img src="https://maven-badges.herokuapp.com/maven-central/cn.hangsman.operationlog/operation-log-core/badge.svg" />
